@@ -28,6 +28,8 @@
 #include <screen_driver.h>
 #include <touch_sensor_driver.h>
 
+#include "Neural_Network.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -113,6 +115,7 @@ static void MX_USART3_UART_Init(void);
   */
 #define MAX(a,b) a>b?a:b
 #define MIN(a,b) a>b?b:a
+
 static int8_t grayscale[28*28] = {0};
 
 
@@ -130,11 +133,11 @@ void show_array(int8_t *matrix)
 
 void paint_array(int8_t *matrix, uint8_t x, uint8_t y)
 {
-    for (int i = -2; i <= 2; i++)
+    for (int i = -2; i < 2; i++)
     {
-        for (int j = -2; j <= 2; j++)
+        for (int j = -2; j < 2; j++)
         {
-            if ((i*i + j*j) <= 4)
+            if ((i*i + j*j) < 4)
             {
                 int r_x = x + i;
                 int r_y = y + j;
@@ -148,7 +151,7 @@ void paint_array(int8_t *matrix, uint8_t x, uint8_t y)
 
 }
 
-void clear_array(uint8_t *matrix)
+void clear_array(int8_t *matrix)
 {
     for (int i = 0; i < 28; i++)
     {
@@ -159,40 +162,24 @@ void clear_array(uint8_t *matrix)
     }
 }
 
-//static void event_cb(lv_event_t * e)
-//{
-//    lv_event_code_t code = lv_event_get_code(e);
-//    lv_obj_t * chart = lv_event_get_user_data(e);
-//    lv_chart_series_t * series[10];
-//    static int i = 0;
-//
-//    lv_point_t p;
-//
-//    if (code == LV_EVENT_PRESSING)
-//    {
-//        lv_indev_t *indev = lv_event_get_indev(e);
-//        lv_indev_type_t indev_type = lv_indev_get_type(lv_indev_act());
-//        if (indev_type == LV_INDEV_TYPE_POINTER  || indev_type == LV_INDEV_TYPE_BUTTON)
-//        {
-//            lv_indev_get_point(indev, &p);
-//            printf("X:%d, Y:%d\n", p.x, p.y);
-//            if(i == 0)
-//                series[i]=lv_chart_get_series_next(chart, NULL);
-//            else
-//                series[i]=lv_chart_get_series_next(chart, NULL);// 请修改这行
-//                printf("%x", series[i]);
-////            series[i]=lv_chart_get_series_next(chart, NULL);
-////            printf("%x", series[i]);
-////            lv_chart_set_next_value2(chart, lv_chart_get_series_next(chart, NULL), p.x, 400 - p.y);
-//            lv_chart_set_next_value2(chart, series[i], p.x, 400 - p.y);
-//            // remap to 28x28
-//            uint8_t r_x = (p.x / 500.0) * 28;
-//            uint8_t r_y = ((p.y-50) / 300.0) * 28;
-//            paint_array(grayscale, r_x, r_y);
-//            show_array(grayscale);
-//        }
-//    }
-//
+static void event_cb(lv_event_t * e)
+{
+	lv_event_code_t code = lv_event_get_code(e);
+	lv_obj_t * chart = lv_event_get_user_data(e);
+	lv_point_t p;
+
+	if(code == LV_EVENT_PRESSING) {
+		lv_indev_t *indev = lv_event_get_indev(e);
+		lv_indev_get_point(indev, &p);
+		lv_chart_set_next_value2(chart, lv_chart_get_series_next(chart, NULL), p.x-50, 350 - p.y);
+
+		// remap to 28x28
+		uint8_t r_x = ((p.x-50) / 300.0) * 28;
+		uint8_t r_y = ((p.y-50) / 300.0) * 28;
+		paint_array(grayscale, r_x, r_y);
+//		show_array(grayscale);
+	}
+
 //    if(code == LV_EVENT_RELEASED)
 //    {
 ////        lv_chart_set_update_mode(chart, LV_CHART_UPDATE_MODE_SHIFT);
@@ -202,32 +189,32 @@ void clear_array(uint8_t *matrix)
 //        series[i] = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_RED), LV_CHART_AXIS_PRIMARY_Y);
 ////        lv_chart_set_type(chart, LV_CHART_TYPE_SCATTER);
 //    }
-//
-//}
 
-//static void clear_event_cb(lv_event_t * e)
-//{
-//    lv_obj_t * chart = lv_event_get_user_data(e);
-//
-//    lv_chart_remove_series(chart, lv_chart_get_series_next(chart, NULL));
-//    lv_chart_set_type(chart, LV_CHART_TYPE_NONE);
-//
-//    lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_RED), LV_CHART_AXIS_PRIMARY_Y);
-//    lv_chart_set_type(chart, LV_CHART_TYPE_SCATTER);
-//
-//    clear_array(grayscale);
+}
+
+static void clear_event_cb(lv_event_t * e)
+{
+    lv_obj_t * chart = lv_event_get_user_data(e);
+
+    lv_chart_remove_series(chart, lv_chart_get_series_next(chart, NULL));
+    lv_chart_set_type(chart, LV_CHART_TYPE_NONE);
+
+    lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_RED), LV_CHART_AXIS_PRIMARY_Y);
+    lv_chart_set_type(chart, LV_CHART_TYPE_SCATTER);
+    lv_chart_refresh(chart);
+
+    clear_array(grayscale);
 //    show_array(grayscale);
-//}
+}
 
-//static void recognize_event_cb(lv_event_t * e)
-//{
-//    lv_obj_t * label = lv_event_get_user_data(e);
-//    int8_t result = -1;
-//
-//    network(grayscale, &result);
-//    //lv_label_set_text(label, "The Result Is:\n%d", result);
-//    lv_label_set_text_fmt(label, "The Result Is:\n%d", result);
-//}
+static void recognize_event_cb(lv_event_t * e)
+{
+    lv_obj_t * label = lv_event_get_user_data(e);
+    int8_t result = -1;
+
+    LeNet5(grayscale, &result);
+    lv_label_set_text_fmt(label, "The Result Is:\n%d", result);
+}
 
 void recognition_ui(void)
 {
@@ -236,21 +223,20 @@ void recognition_ui(void)
     lv_obj_set_size(screen, 800, 480);
 //    lv_obj_t *touch_num_screen = lv_obj_create(screen);
     lv_obj_t *touch_num_screen = lv_chart_create(lv_scr_act()); // use chart as touch_screen
-    lv_obj_set_size(touch_num_screen, 500, 300);
-    lv_obj_set_pos(touch_num_screen, 0, 50);
+    lv_obj_set_size(touch_num_screen, 300, 300);
+    lv_obj_set_pos(touch_num_screen, 50, 50);
 //    lv_obj_add_flag(touch_num_screen, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
     lv_obj_set_style_line_width(touch_num_screen, 0, LV_PART_ITEMS);   /*Remove the lines*/
     lv_chart_set_div_line_count(touch_num_screen, 0, 0);
 //
     lv_chart_set_type(touch_num_screen, LV_CHART_TYPE_SCATTER);
 //
-    lv_chart_set_range(touch_num_screen, LV_CHART_AXIS_PRIMARY_X, 0, 500);
-    lv_chart_set_range(touch_num_screen, LV_CHART_AXIS_PRIMARY_Y, 50, 350);
+    lv_chart_set_range(touch_num_screen, LV_CHART_AXIS_PRIMARY_X, 0, 300);
+    lv_chart_set_range(touch_num_screen, LV_CHART_AXIS_PRIMARY_Y, 0, 300);
 //
     lv_chart_set_point_count(touch_num_screen, 100);
     lv_chart_add_series(touch_num_screen, lv_palette_main(LV_PALETTE_RED), LV_CHART_AXIS_PRIMARY_Y);
-//    lv_obj_add_event_cb(touch_num_screen, event_cb, LV_EVENT_PRESSING, touch_num_screen);
-//    lv_obj_add_event_cb(touch_num_screen, event_cb, LV_EVENT_RELEASED, touch_num_screen);
+    lv_obj_add_event_cb(touch_num_screen, event_cb, LV_EVENT_ALL, touch_num_screen);
 
     // 主标题
     lv_obj_t *main_title = lv_label_create(screen);
@@ -264,25 +250,75 @@ void recognition_ui(void)
 
     // 识别按钮
     lv_obj_t *btn_cf = lv_btn_create(screen);
-    lv_obj_set_size(btn_cf, 125, 30);
-    lv_obj_align_to(btn_cf, touch_num_screen, LV_ALIGN_OUT_BOTTOM_MID, -150, 20);
+    lv_obj_set_size(btn_cf, 125, 50);
+    lv_obj_align_to(btn_cf, touch_num_screen, LV_ALIGN_OUT_BOTTOM_MID, -100, 20);
     lv_obj_t *text_cf = lv_label_create(btn_cf);
     lv_label_set_text(text_cf, "Recognize");
     lv_obj_align(text_cf, LV_ALIGN_CENTER, 0, 0);
-//    lv_obj_t * info_label = lv_label_create(lv_screen_active());
-//    lv_label_set_text(info_label, "The Result:\nNone");
-//    lv_obj_add_event_cb(btn_cf, recognize_event_cb, LV_EVENT_CLICKED, info_label);
-//    lv_obj_align_to(info_label, touch_num_screen, LV_ALIGN_OUT_RIGHT_MID, 0, -20);
+    lv_obj_t * info_label = lv_label_create(lv_scr_act());
+    lv_label_set_text(info_label, "The Result:\nNone");
+    lv_obj_add_event_cb(btn_cf, recognize_event_cb, LV_EVENT_CLICKED, info_label);
+    lv_obj_align_to(info_label, touch_num_screen, LV_ALIGN_OUT_RIGHT_MID, 0, -20);
 
     // 清除按钮
     lv_obj_t *btn_cl = lv_btn_create(screen);
-    lv_obj_set_size(btn_cl, 125, 30);
-    lv_obj_align_to(btn_cl, touch_num_screen, LV_ALIGN_OUT_BOTTOM_MID, 150, 20);
+    lv_obj_set_size(btn_cl, 125, 50);
+    lv_obj_align_to(btn_cl, touch_num_screen, LV_ALIGN_OUT_BOTTOM_MID, 100, 20);
     lv_obj_t *text_cl = lv_label_create(btn_cl);
     lv_label_set_text(text_cl, "Clear");
     lv_obj_align(text_cl, LV_ALIGN_CENTER, 0, 0);
-//    lv_obj_add_event_cb(btn_cl, clear_event_cb, LV_EVENT_CLICKED, touch_num_screen);
+    lv_obj_add_event_cb(btn_cl, clear_event_cb, LV_EVENT_CLICKED, touch_num_screen);
 
+}
+static void event_cb1(lv_event_t * e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t * chart = lv_event_get_user_data(e);
+    lv_point_t p;
+
+    if(code == LV_EVENT_PRESSING) {
+    	lv_indev_t *indev = lv_event_get_indev(e);
+		lv_indev_get_point(indev, &p);
+		lv_chart_set_next_value2(chart, lv_chart_get_series_next(chart, NULL), p.x, 400 - p.y);
+    }
+}
+
+/**
+ * Show the value of the pressed points
+ */
+void lv_example_chart_test(void)
+{
+    /*Create a chart*/
+    lv_obj_t * chart;
+    chart = lv_chart_create(lv_scr_act());
+    lv_obj_set_size(chart, 500, 300);
+    lv_obj_set_pos(chart, 0, 50);
+
+    lv_chart_set_div_line_count(chart, 0, 0);
+
+    lv_chart_set_type(chart, LV_CHART_TYPE_SCATTER);
+
+    lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_X, 0, 500);
+	lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, 50, 350);
+
+    lv_chart_set_point_count(chart, 100);
+    lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_RED), LV_CHART_AXIS_PRIMARY_Y);
+
+    lv_obj_add_event_cb(chart, event_cb1, LV_EVENT_ALL, chart);
+
+//    lv_obj_refresh_ext_draw_size(chart);
+
+    /*Zoom in a little in X*/
+//    lv_chart_set_zoom_x(chart, 800);
+//
+//    /*Add two data series*/
+//    lv_chart_series_t * ser1 = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_RED), LV_CHART_AXIS_PRIMARY_Y);
+//    lv_chart_series_t * ser2 = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_GREEN), LV_CHART_AXIS_PRIMARY_Y);
+//    uint32_t i;
+//    for(i = 0; i < 10; i++) {
+//        lv_chart_set_next_value(chart, ser1, lv_rand(60, 90));
+//        lv_chart_set_next_value(chart, ser2, lv_rand(10, 40));
+//    }
 }
 
 int main(void)
@@ -328,8 +364,11 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-//  lv_example_get_started_3();
+
+
   recognition_ui();
+//  lv_example_chart_test();
+
   while (1)
   {
 	  HAL_Delay(5);
